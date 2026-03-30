@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taiwan Trivia — Multiplayer</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #C8102E;
+    --gold: #D4AF37;
+    --deep: #1a0a0f;
+    --cream: #fdf6ec;
+    --p1: #1e6b8a;
+    --p2: #8a3a1e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--deep);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(200,16,46,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 90%, rgba(212,175,55,0.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+  .header {
+    text-align: center;
+    padding: 28px 0 20px;
+  }
+  .header-flag {
+    font-size: 44px;
+    display: block;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 4px 12px rgba(200,16,46,0.4));
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(26px, 6vw, 42px);
+    line-height: 1.1;
+  }
+  .header h1 em { font-style: italic; color: var(--gold); }
+  .header-sub {
+    margin-top: 6px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(253,246,236,0.4);
+  }
+
+  /* SCREENS */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 28px;
+    backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--red), var(--gold), var(--red));
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+  }
+  @keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
+
+  /* LOBBY */
+  .lobby-box { max-width: 460px; margin: 0 auto; text-align: center; }
+  .lobby-box h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+  .lobby-box p { font-size: 13px; color: rgba(253,246,236,0.5); margin-bottom: 24px; }
+
+  .name-row { margin-bottom: 16px; text-align: left; }
+  .name-row label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .name-row input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .name-row input:focus { border-color: var(--gold); }
+
+  .q-select-label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-align: left;
+  }
+  .q-options {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .q-opt {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .q-opt.selected { background: rgba(200,16,46,0.2); border-color: var(--red); color: #f08080; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    opacity: 0.25;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider span { font-size: 13px; white-space: nowrap; }
+
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--red), #a00d24);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(200,16,46,0.35); }
+  .btn-secondary {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1.5px solid rgba(255,255,255,0.18);
+    border-radius: 12px;
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--gold); }
+
+  .join-code-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .join-code-row input {
+    flex: 1;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    color: var(--cream);
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    letter-spacing: 4px;
+    text-align: center;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .join-code-row input:focus { border-color: var(--gold); }
+  .join-code-row button {
+    padding: 12px 20px;
+    background: linear-gradient(135deg, var(--red), #a00d24);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* WAITING SCREEN */
+  .waiting-box { max-width: 440px; margin: 0 auto; text-align: center; }
+  .room-code-display {
+    font-family: 'DM Serif Display', serif;
+    font-size: 52px;
+    letter-spacing: 10px;
+    color: var(--gold);
+    margin: 16px 0 8px;
+    text-shadow: 0 0 30px rgba(212,175,55,0.4);
+  }
+  .waiting-pulse {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(253,246,236,0.5);
+    margin-top: 12px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+
+  .player-joined {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(42,125,79,0.15);
+    border: 1px solid rgba(42,125,79,0.3);
+    border-radius: 12px;
+    margin-top: 16px;
+    font-size: 14px;
+    color: #7edba5;
+    animation: fadeIn 0.3s ease;
+  }
+
+  /* SCOREBOARD */
+  .scoreboard {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px;
+    align-items: center;
+    margin: 16px 0 20px;
+  }
+  .player-card {
+    border-radius: 14px;
+    padding: 12px 16px;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+  }
+  .player-card.p1 { background: rgba(30,107,138,0.15); border-color: rgba(30,107,138,0.3); }
+  .player-card.p2 { background: rgba(138,58,30,0.15); border-color: rgba(138,58,30,0.3); text-align: right; }
+  .player-card.active-turn { border-color: var(--gold); box-shadow: 0 0 20px rgba(212,175,55,0.2); }
+  .player-card.you-badge .player-name::before { content: '(You) '; font-size: 10px; opacity: 0.6; }
+  .player-name { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(253,246,236,0.55); margin-bottom: 2px; }
+  .player-score { font-family: 'DM Serif Display', serif; font-size: 34px; }
+  .player-card.p1 .player-score { color: #7ec8e3; }
+  .player-card.p2 .player-score { color: #e3a07e; }
+  .vs-badge { text-align: center; font-family: 'DM Serif Display', serif; font-size: 16px; color: rgba(253,246,236,0.2); }
+  .q-counter { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: rgba(253,246,236,0.3); text-align: center; margin-top: 3px; }
+
+  .progress-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 24px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--gold)); border-radius: 2px; transition: width 0.5s ease; }
+
+  /* QUESTION */
+  .turn-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+  .turn-label.p1 { background: rgba(30,107,138,0.25); color: #7ec8e3; }
+  .turn-label.p2 { background: rgba(138,58,30,0.25); color: #e3a07e; }
+  .category-tag { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); opacity: 0.7; margin-bottom: 8px; }
+  .question-text { font-family: 'DM Serif Display', serif; font-size: clamp(18px, 3.5vw, 23px); line-height: 1.4; margin-bottom: 22px; }
+
+  .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media(max-width:520px) { .options-grid { grid-template-columns: 1fr; } }
+  .option-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 13px 15px;
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    line-height: 1.3;
+  }
+  .option-btn:hover:not(:disabled) { background: rgba(255,255,255,0.09); border-color: rgba(212,175,55,0.5); transform: translateY(-1px); }
+  .option-letter { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; color: var(--gold); }
+  .option-btn.correct { background: rgba(42,125,79,0.25); border-color: #2a7d4f; color: #7edba5; }
+  .option-btn.correct .option-letter { background: #2a7d4f; color: white; }
+  .option-btn.wrong { background: rgba(192,57,43,0.2); border-color: #c0392b; color: #f08080; }
+  .option-btn.wrong .option-letter { background: #c0392b; color: white; }
+  .option-btn:disabled { cursor: not-allowed; }
+
+  .not-your-turn {
+    text-align: center;
+    padding: 20px;
+    color: rgba(253,246,236,0.4);
+    font-size: 14px;
+  }
+  .not-your-turn span { display: block; font-size: 28px; margin-bottom: 8px; }
+
+  .feedback-bar {
+    margin-top: 16px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+  .feedback-bar.show { display: block; }
+  .feedback-bar.correct-fb { background: rgba(42,125,79,0.2); border: 1px solid rgba(42,125,79,0.4); color: #7edba5; }
+  .feedback-bar.wrong-fb { background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.35); color: #f08080; }
+  .feedback-fun { margin-top: 6px; font-size: 13px; opacity: 0.8; color: var(--cream); }
+
+  .waiting-answer {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(253,246,236,0.4);
+    display: none;
+  }
+  .waiting-answer.show { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+  /* RESULTS */
+  .results-box { text-align: center; padding: 16px; }
+  .results-emoji { font-size: 60px; margin-bottom: 14px; }
+  .results-box h2 { font-family: 'DM Serif Display', serif; font-size: 30px; margin-bottom: 6px; }
+  .winner-name { color: var(--gold); }
+  .results-sub { font-size: 14px; color: rgba(253,246,236,0.5); margin-bottom: 28px; }
+  .final-scores { display: flex; gap: 16px; justify-content: center; margin-bottom: 28px; flex-wrap: wrap; }
+  .final-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 18px 28px; min-width: 120px; }
+  .final-card.winner { border-color: var(--gold); box-shadow: 0 0 30px rgba(212,175,55,0.2); }
+  .fc-name { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.5; margin-bottom: 4px; }
+  .fc-score { font-family: 'DM Serif Display', serif; font-size: 40px; }
+  .p1-card .fc-score { color: #7ec8e3; }
+  .p2-card .fc-score { color: #e3a07e; }
+  .results-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .play-again-btn, .new-game-btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .play-again-btn { background: linear-gradient(135deg, var(--red), #a00d24); border: none; color: white; }
+  .play-again-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(200,16,46,0.35); }
+  .new-game-btn { background: transparent; border: 1.5px solid rgba(255,255,255,0.2); color: var(--cream); }
+  .new-game-btn:hover { border-color: var(--gold); }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes scoreBounce { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
+  .score-bump { animation: scoreBounce 0.4s ease; }
+
+  .error-msg { color: #f08080; font-size: 13px; margin-top: 10px; min-height: 20px; text-align: center; }
+
+  .waiting-next {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(212,175,55,0.08);
+    border: 1px solid rgba(212,175,55,0.2);
+    color: rgba(253,246,236,0.5);
+    font-size: 13px;
+    text-align: center;
+    display: none;
+  }
+  .waiting-next.show { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <span class="header-flag">🇹🇼</span>
+    <h1>Discover <em>Taiwan</em></h1>
+    <p class="header-sub">Real-time two-player trivia</p>
+  </div>
+
+  <!-- LOBBY SCREEN -->
+  <div id="lobbyScreen" class="screen active">
+    <div class="lobby-box card">
+      <h2>Let's Play!</h2>
+      <p>One of you creates a room, the other joins with the code</p>
+
+      <div class="name-row">
+        <label>Your Name</label>
+        <input id="playerName" type="text" placeholder="Enter your name" maxlength="20">
+      </div>
+
+      <div class="q-select-label">Questions (host only)</div>
+      <div class="q-options">
+        <button class="q-opt" data-val="10">10</button>
+        <button class="q-opt selected" data-val="20">20</button>
+        <button class="q-opt" data-val="30">30</button>
+      </div>
+
+      <button class="btn-primary" onclick="createRoom()">🎯 Create Room</button>
+
+      <div class="divider"><span>or join an existing room</span></div>
+
+      <div class="join-code-row">
+        <input id="joinCodeInput" type="text" placeholder="CODE" maxlength="4">
+        <button onclick="joinRoom()">Join →</button>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+  </div>
+
+  <!-- WAITING SCREEN -->
+  <div id="waitingScreen" class="screen">
+    <div class="waiting-box card">
+      <p style="font-size:13px;color:rgba(253,246,236,0.5);margin-bottom:8px;">Share this code with your partner</p>
+      <div class="room-code-display" id="roomCodeDisplay">----</div>
+      <p style="font-size:12px;color:rgba(253,246,236,0.35);margin-bottom:16px;">They enter this code on their phone</p>
+      <div id="waitingStatus" class="waiting-pulse">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        Waiting for your partner to join…
+      </div>
+      <div id="partnerJoined" class="player-joined" style="display:none">
+        ✅ <span id="partnerJoinedName">Partner</span> has joined! Starting game…
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="screen">
+    <div class="scoreboard">
+      <div class="player-card p1" id="p1card">
+        <div class="player-name" id="p1label">Player 1</div>
+        <div class="player-score" id="p1score">0</div>
+      </div>
+      <div>
+        <div class="vs-badge">VS</div>
+        <div class="q-counter" id="qcounter">Q 1 / 20</div>
+      </div>
+      <div class="player-card p2" id="p2card">
+        <div class="player-name" id="p2label">Player 2</div>
+        <div class="player-score" id="p2score">0</div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+    <div class="card" id="questionCard">
+      <div class="turn-label p1" id="turnLabel">Player 1's turn</div>
+      <div class="category-tag" id="categoryTag">CULTURE</div>
+      <div class="question-text" id="questionText">Loading…</div>
+      <div class="options-grid" id="optionsGrid"></div>
+      <div class="not-your-turn" id="notYourTurn" style="display:none">
+        <span>⏳</span>Waiting for your partner to answer…
+      </div>
+      <div class="feedback-bar" id="feedbackBar"></div>
+      <div class="waiting-answer" id="waitingAnswer">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        Waiting for partner to see result…
+      </div>
+      <div class="waiting-next" id="waitingNext">⏳ Waiting for your partner to be ready…</div>
+    </div>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div id="resultsScreen" class="screen">
+    <div class="results-box card">
+      <div class="results-emoji" id="resultsEmoji">🏆</div>
+      <h2 id="resultsTitle">Game Over!</h2>
+      <p class="results-sub" id="resultsSub"></p>
+      <div class="final-scores">
+        <div class="final-card p1-card" id="finalP1Card">
+          <div class="fc-name" id="fp1name">P1</div>
+          <div class="fc-score" id="fp1score">0</div>
+        </div>
+        <div class="final-card p2-card" id="finalP2Card">
+          <div class="fc-name" id="fp2name">P2</div>
+          <div class="fc-score" id="fp2score">0</div>
+        </div>
+      </div>
+      <div class="results-btns">
+        <button class="play-again-btn" onclick="playAgain()">Play Again 🔄</button>
+        <button class="new-game-btn" onclick="newGame()">New Game</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, set, get, update, onValue, off, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKsvg050Oqr2RvvJFAM4RpUmqe1RIQuXc",
+  authDomain: "taiwan-trivia.firebaseapp.com",
+  databaseURL: "https://taiwan-trivia-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "taiwan-trivia",
+  storageBucket: "taiwan-trivia.firebasestorage.app",
+  messagingSenderId: "1098710658472",
+  appId: "1:1098710658472:web:0ccac0274ffb80a5c6c19d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ── STATE ──────────────────────────────────────────────
+let myRole = null;      // 'host' or 'guest'
+let myName = '';
+let roomCode = '';
+let gameQuestions = [];
+let totalQ = 20;
+let currentQIndex = 0;
+let scores = { host: 0, guest: 0 };
+let names = { host: '', guest: '' };
+let answered = false;
+let selectedQCount = 20;
+let gameListener = null;
+let readyFlags = { host: false, guest: false };
+
+// ── ALL QUESTIONS ───────────────────────────────────────
+const ALL_QUESTIONS = [
+  { cat: "Geography", q: "What is the capital city of Taiwan?", opts: ["Kaohsiung","Taichung","Taipei","Tainan"], ans: 2, fun: "Taipei is home to over 2.6 million people and sits at the northern tip of the island." },
+  { cat: "Geography", q: "Taiwan is situated across which body of water from mainland China?", opts: ["South China Sea","Philippine Sea","Taiwan Strait","East China Sea"], ans: 2, fun: "The Taiwan Strait separates Taiwan from mainland China by about 180 km." },
+  { cat: "Geography", q: "What is Taiwan's highest mountain?", opts: ["Jade Mountain (Yushan)","Snow Mountain (Xueshan)","Alishan","Hehuanshan"], ans: 0, fun: "Jade Mountain (玉山) stands at 3,952 m — the highest peak in Northeast Asia." },
+  { cat: "Geography", q: "Which island group administered by Taiwan is closest to mainland China?", opts: ["Penghu","Green Island","Orchid Island","Kinmen (Quemoy)"], ans: 3, fun: "Kinmen is just a few kilometers from the Chinese city of Xiamen." },
+  { cat: "Geography", q: "What is the approximate area of Taiwan?", opts: ["16,000 km²","36,000 km²","56,000 km²","76,000 km²"], ans: 1, fun: "At ~36,000 km², Taiwan is slightly larger than the Netherlands." },
+  { cat: "Food & Drink", q: "Which famous snack is a sausage wrapped inside a sticky rice sausage?", opts: ["Oyster omelette","Scallion pancake","Big sausage small sausage","Pork blood cake"], ans: 2, fun: "Called 大腸包小腸, it's a beloved street food at night markets across Taiwan." },
+  { cat: "Food & Drink", q: "What soft drink was invented in Taiwan and became hugely popular worldwide?", opts: ["Barley tea","Bubble tea (boba)","Grass jelly drink","Sugarcane juice"], ans: 1, fun: "Bubble tea was invented in Taichung in the 1980s and is now a global phenomenon." },
+  { cat: "Food & Drink", q: "Which city is famous for its annual Beef Noodle Festival?", opts: ["Kaohsiung","Tainan","Taipei","Hualien"], ans: 2, fun: "Taipei hosts a major International Beef Noodle Festival each year." },
+  { cat: "Food & Drink", q: "What is 'ba-wan' (肉圓)?", opts: ["Deep-fried tofu","A gelatinous dumpling with savory filling","Grilled corn with mayonnaise","Sweet sticky rice ball"], ans: 1, fun: "Ba-wan is a chewy, semi-transparent dumpling made from sweet potato starch." },
+  { cat: "Food & Drink", q: "Taiwan is famous for which type of high-altitude mountain tea?", opts: ["Pu-erh","Sencha","Oolong","Darjeeling"], ans: 2, fun: "Alishan and Li Shan oolong teas are among the most prized in the world." },
+  { cat: "Food & Drink", q: "Which Taipei night market is the most famous for street food?", opts: ["Ruifeng Night Market","Liuhe Night Market","Shilin Night Market","Fengjia Night Market"], ans: 2, fun: "Shilin Night Market is one of the largest and most visited night markets in Taiwan." },
+  { cat: "Food & Drink", q: "Taiwanese scallion pancakes are typically served with what?", opts: ["Soy milk","Sweet chili sauce","Egg and optional sauces","Coconut milk"], ans: 2, fun: "They're made fresh on a griddle and often served with a fried egg layered inside." },
+  { cat: "Culture", q: "What is the primary language spoken in Taiwan?", opts: ["Cantonese","Mandarin Chinese","Hokkien","Japanese"], ans: 1, fun: "Mandarin is the official language, though Taiwanese Hokkien is widely spoken too." },
+  { cat: "Culture", q: "Taiwan's Lantern Festival falls on the 15th day of which lunar month?", opts: ["First","Third","Fifth","Seventh"], ans: 0, fun: "The Pingxi sky lantern release is one of the most iconic Lantern Festival events in Asia." },
+  { cat: "Culture", q: "What is Taiwan's most visited religious site?", opts: ["Fo Guang Shan","Longshan Temple","Xingtian Temple","Zhinan Temple"], ans: 1, fun: "Longshan Temple in Taipei's Wanhua district was built in 1738." },
+  { cat: "Culture", q: "Which indigenous people give their name to a famous gorge in eastern Taiwan?", opts: ["Amis","Bunun","Taroko","Paiwan"], ans: 2, fun: "Taroko Gorge is named after the Truku (Taroko) indigenous people." },
+  { cat: "Culture", q: "Taiwan celebrates which festival with dragon boat races?", opts: ["Ghost Festival","Dragon Boat Festival","Tomb Sweeping Day","Lantern Festival"], ans: 1, fun: "The Dragon Boat Festival is on the 5th day of the 5th lunar month." },
+  { cat: "Landmarks", q: "Taipei 101 held the world's tallest building record until which year?", opts: ["2008","2010","2012","2014"], ans: 1, fun: "Taipei 101 was surpassed by the Burj Khalifa in 2010. It stands 509 metres tall." },
+  { cat: "Landmarks", q: "Which scenic railway travels up to the Alishan forest area?", opts: ["North-Link Line","South-Link Line","Alishan Forest Railway","Taiwan High Speed Rail"], ans: 2, fun: "The Alishan Forest Railway is a narrow-gauge heritage railway through cypress forests." },
+  { cat: "Landmarks", q: "The National Palace Museum houses one of the world's largest collections of what?", opts: ["Ancient Greek art","Chinese imperial artifacts","Southeast Asian textiles","Japanese ceramics"], ans: 1, fun: "The museum holds over 700,000 pieces of Chinese imperial art and artifacts." },
+  { cat: "Landmarks", q: "Which hillside town east of Taipei is famous for gold mining and sea-cliff views?", opts: ["Jiufen","Kenting","Sun Moon Lake","Green Island"], ans: 0, fun: "Jiufen's teahouses and alleyways are said to have inspired Studio Ghibli's Spirited Away." },
+  { cat: "Landmarks", q: "Sun Moon Lake, Taiwan's largest lake, is in which county?", opts: ["Nantou","Hualien","Chiayi","Pingtung"], ans: 0, fun: "Sun Moon Lake sits at 748 m altitude and is shaped like a sun on one side and a moon on the other." },
+  { cat: "Landmarks", q: "What is the name of the spectacular marble gorge in eastern Taiwan?", opts: ["Yangmingshan","Taroko Gorge","Wulai Gorge","Maolin Gorge"], ans: 1, fun: "Taroko National Park in Hualien County protects one of Asia's most dramatic landscapes." },
+  { cat: "History & Facts", q: "Which European nation colonized Taiwan from 1624 to 1662?", opts: ["Portugal","Spain","Britain","The Netherlands"], ans: 3, fun: "The Dutch East India Company (VOC) built Fort Zeelandia near present-day Tainan." },
+  { cat: "History & Facts", q: "What is the nickname for Taiwan's rapid economic growth from the 1960s–90s?", opts: ["Asian Dragon","Taiwan Miracle","Pacific Tiger","Pearl of the Orient"], ans: 1, fun: "The Taiwan Miracle made it one of Asia's Four Tigers." },
+  { cat: "History & Facts", q: "Taiwan is a world leader in manufacturing which technology product?", opts: ["Lithium batteries","Semiconductor chips","Solar panels","Industrial robots"], ans: 1, fun: "TSMC produces over 90% of the world's most advanced chips." },
+  { cat: "History & Facts", q: "Which general drove the Dutch out of Taiwan in 1662?", opts: ["Qin Shi Huang","Koxinga (Zheng Chenggong)","Sun Yat-sen","Chiang Kai-shek"], ans: 1, fun: "Koxinga, a Ming loyalist, besieged the Dutch for 9 months before they surrendered." },
+  { cat: "History & Facts", q: "Taiwan was under Japanese colonial rule for how many years?", opts: ["30 years","40 years","50 years","60 years"], ans: 2, fun: "Japan ruled Taiwan from 1895 to 1945, leaving lasting influences on food and architecture." },
+  { cat: "History & Facts", q: "What is the official name of the governing state of Taiwan?", opts: ["Republic of Taiwan","Democratic Republic of Taiwan","Republic of China","People's Republic of Taiwan"], ans: 2, fun: "The ROC government relocated to Taiwan in 1949 after the Chinese civil war." },
+  { cat: "Nature", q: "Taiwan's east coast faces which ocean?", opts: ["Indian Ocean","Pacific Ocean","Arctic Ocean","Southern Ocean"], ans: 1, fun: "The Pacific Ocean meets Taiwan's dramatic east coast — some cliffs plunge straight into the sea." },
+  { cat: "Nature", q: "Which turquoise-colored bird is endemic to Taiwan and considered a national treasure?", opts: ["Taiwan Blue Magpie","Taiwan Barbet","Collared Bush Robin","Taiwan Rosefinch"], ans: 0, fun: "The Taiwan Blue Magpie was voted the national bird in a public poll in 2007." },
+  { cat: "Nature", q: "About how many earthquakes does Taiwan experience per year?", opts: ["Over 100","Over 1,000","Over 18,000","Over 100,000"], ans: 2, fun: "Taiwan experiences around 18,000 earthquakes per year, most of them small." },
+];
+
+// ── UTILS ───────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length: 4}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function setError(msg) { document.getElementById('errorMsg').textContent = msg; }
+
+// ── Q-COUNT SELECTOR ────────────────────────────────────
+document.querySelectorAll('.q-opt').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.q-opt').forEach(b => b.classList.remove('selected'));
+    this.classList.add('selected');
+    selectedQCount = parseInt(this.dataset.val);
+  });
+});
+
+// ── CREATE ROOM ─────────────────────────────────────────
+window.createRoom = async function() {
+  const name = document.getElementById('playerName').value.trim();
+  if (!name) { setError('Please enter your name first.'); return; }
+  myName = name;
+  myRole = 'host';
+  roomCode = genCode();
+  totalQ = selectedQCount;
+  gameQuestions = shuffle(ALL_QUESTIONS).slice(0, totalQ);
+
+  const roomRef = ref(db, `rooms/${roomCode}`);
+  await set(roomRef, {
+    host: name,
+    guest: null,
+    status: 'waiting',
+    totalQ,
+    questions: gameQuestions,
+    currentQ: 0,
+    scores: { host: 0, guest: 0 },
+    answer: null,
+    ready: { host: false, guest: false }
+  });
+
+  document.getElementById('roomCodeDisplay').textContent = roomCode;
+  showScreen('waitingScreen');
+
+  // Listen for guest joining
+  const roomListener = onValue(roomRef, snap => {
+    const data = snap.val();
+    if (!data) return;
+    if (data.guest && data.status === 'waiting') {
+      document.getElementById('partnerJoined').style.display = 'flex';
+      document.getElementById('partnerJoinedName').textContent = data.guest;
+      off(roomRef, 'value', roomListener);
+      // Start game
+      setTimeout(async () => {
+        await update(roomRef, { status: 'playing' });
+        initGame(data);
+      }, 1500);
+    }
+  });
+};
+
+// ── JOIN ROOM ───────────────────────────────────────────
+window.joinRoom = async function() {
+  const name = document.getElementById('playerName').value.trim();
+  const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  if (!name) { setError('Please enter your name first.'); return; }
+  if (code.length !== 4) { setError('Please enter a 4-character room code.'); return; }
+
+  myName = name;
+  myRole = 'guest';
+  roomCode = code;
+
+  const roomRef = ref(db, `rooms/${roomCode}`);
+  const snap = await get(roomRef);
+  if (!snap.exists()) { setError('Room not found. Check the code and try again.'); return; }
+  const data = snap.val();
+  if (data.status !== 'waiting') { setError('This game has already started.'); return; }
+  if (data.guest) { setError('This room already has two players.'); return; }
+
+  await update(roomRef, { guest: name });
+  gameQuestions = data.questions;
+  totalQ = data.totalQ;
+  names.host = data.host;
+  names.guest = name;
+
+  // Wait for host to set status to playing
+  const statusListener = onValue(roomRef, snap2 => {
+    const d = snap2.val();
+    if (d && d.status === 'playing') {
+      off(roomRef, 'value', statusListener);
+      initGame(d);
+    }
+  });
+};
+
+// ── INIT GAME ───────────────────────────────────────────
+function initGame(data) {
+  names.host = data.host;
+  names.guest = data.guest;
+  gameQuestions = data.questions;
+  totalQ = data.totalQ;
+  scores = { host: 0, guest: 0 };
+  currentQIndex = 0;
+  answered = false;
+
+  // p1 = host, p2 = guest
+  document.getElementById('p1label').textContent = names.host;
+  document.getElementById('p2label').textContent = names.guest;
+  document.getElementById('p1score').textContent = '0';
+  document.getElementById('p2score').textContent = '0';
+
+  // Mark "you" badge
+  if (myRole === 'host') {
+    document.getElementById('p1card').classList.add('you-badge');
+  } else {
+    document.getElementById('p2card').classList.add('you-badge');
+  }
+
+  showScreen('gameScreen');
+  listenToRoom();
+  renderQuestion();
+}
+
+// ── LISTEN TO ROOM (real-time sync) ─────────────────────
+function listenToRoom() {
+  if (gameListener) off(ref(db, `rooms/${roomCode}`), 'value', gameListener);
+  const roomRef = ref(db, `rooms/${roomCode}`);
+  gameListener = onValue(roomRef, snap => {
+    const data = snap.val();
+    if (!data) return;
+
+    // Update scores
+    scores = data.scores || { host: 0, guest: 0 };
+    document.getElementById('p1score').textContent = scores.host;
+    document.getElementById('p2score').textContent = scores.guest;
+
+    // Sync question index
+    if (data.currentQ !== undefined && data.currentQ !== currentQIndex) {
+      currentQIndex = data.currentQ;
+      answered = false;
+      if (data.status === 'results') {
+        showResults();
+        return;
+      }
+      renderQuestion();
+      return;
+    }
+
+    // Show answer reveal to the non-answering player
+    if (data.answer !== null && data.answer !== undefined && !answered) {
+      const q = gameQuestions[currentQIndex];
+      const whosTurn = currentQIndex % 2 === 0 ? 'host' : 'guest';
+      if (myRole !== whosTurn) {
+        // I'm watching — reveal answer on my screen
+        revealAnswer(data.answer, q, false);
+      }
+    }
+
+    // Both ready → advance
+    if (data.ready && data.ready.host && data.ready.guest) {
+      // Reset ready flags and advance
+      update(ref(db, `rooms/${roomCode}`), {
+        'ready/host': false,
+        'ready/guest': false,
+        answer: null,
+        currentQ: currentQIndex + 1,
+        status: currentQIndex + 1 >= totalQ ? 'results' : 'playing'
+      });
+    }
+  });
+}
+
+// ── RENDER QUESTION ─────────────────────────────────────
+function renderQuestion() {
+  answered = false;
+  const q = gameQuestions[currentQIndex];
+  const whosTurn = currentQIndex % 2 === 0 ? 'host' : 'guest'; // host goes on even, guest on odd
+  const isMyTurn = myRole === whosTurn;
+
+  document.getElementById('qcounter').textContent = `Q ${currentQIndex + 1} / ${totalQ}`;
+  document.getElementById('progressFill').style.width = `${(currentQIndex / totalQ) * 100}%`;
+
+  const tl = document.getElementById('turnLabel');
+  const turnerName = names[whosTurn];
+  tl.textContent = isMyTurn ? `🙋 Your turn!` : `🙋 ${turnerName}'s turn`;
+  tl.className = `turn-label ${whosTurn === 'host' ? 'p1' : 'p2'}`;
+
+  document.getElementById('p1card').classList.toggle('active-turn', whosTurn === 'host');
+  document.getElementById('p2card').classList.toggle('active-turn', whosTurn === 'guest');
+
+  document.getElementById('categoryTag').textContent = q.cat.toUpperCase();
+  document.getElementById('questionText').textContent = q.q;
+
+  const letters = ['A','B','C','D'];
+  const grid = document.getElementById('optionsGrid');
+  grid.innerHTML = '';
+
+  if (isMyTurn) {
+    document.getElementById('notYourTurn').style.display = 'none';
+    q.opts.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.innerHTML = `<span class="option-letter">${letters[i]}</span>${opt}`;
+      btn.onclick = () => handleAnswer(i);
+      grid.appendChild(btn);
+    });
+  } else {
+    document.getElementById('notYourTurn').style.display = 'block';
+  }
+
+  document.getElementById('feedbackBar').className = 'feedback-bar';
+  document.getElementById('feedbackBar').innerHTML = '';
+  document.getElementById('waitingAnswer').className = 'waiting-answer';
+  document.getElementById('waitingNext').className = 'waiting-next';
+}
+
+// ── HANDLE ANSWER ────────────────────────────────────────
+async function handleAnswer(chosen) {
+  if (answered) return;
+  answered = true;
+
+  const q = gameQuestions[currentQIndex];
+  const correct = chosen === q.ans;
+  const whosTurn = currentQIndex % 2 === 0 ? 'host' : 'guest';
+
+  // Reveal on my screen
+  revealAnswer(chosen, q, true);
+
+  // Update score in Firebase if correct
+  const updates = { answer: chosen };
+  if (correct) {
+    updates[`scores/${whosTurn}`] = scores[whosTurn] + 1;
+    const scoreEl = document.getElementById(whosTurn === 'host' ? 'p1score' : 'p2score');
+    scoreEl.classList.remove('score-bump');
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add('score-bump');
+  }
+  await update(ref(db, `rooms/${roomCode}`), updates);
+
+  // Show waiting for partner
+  document.getElementById('waitingAnswer').className = 'waiting-answer show';
+
+  // Signal I'm ready to advance after a short delay
+  setTimeout(async () => {
+    document.getElementById('waitingAnswer').className = 'waiting-answer';
+    document.getElementById('waitingNext').className = 'waiting-next show';
+    await update(ref(db, `rooms/${roomCode}`), { [`ready/${myRole}`]: true });
+  }, 2500);
+}
+
+// ── REVEAL ANSWER (UI only) ──────────────────────────────
+function revealAnswer(chosen, q, iAmAnswerer) {
+  answered = true;
+  const btns = document.querySelectorAll('.option-btn');
+  const fb = document.getElementById('feedbackBar');
+  const correct = chosen === q.ans;
+
+  // Show options to watcher too
+  if (!iAmAnswerer) {
+    document.getElementById('notYourTurn').style.display = 'none';
+    const letters = ['A','B','C','D'];
+    const grid = document.getElementById('optionsGrid');
+    grid.innerHTML = '';
+    q.opts.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.innerHTML = `<span class="option-letter">${letters[i]}</span>${opt}`;
+      btn.disabled = true;
+      grid.appendChild(btn);
+    });
+  }
+
+  document.querySelectorAll('.option-btn').forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.ans) btn.classList.add('correct');
+    else if (i === chosen && !correct) btn.classList.add('wrong');
+  });
+
+  const whosTurn = currentQIndex % 2 === 0 ? 'host' : 'guest';
+  const answererName = names[whosTurn];
+
+  if (iAmAnswerer) {
+    if (correct) {
+      fb.className = 'feedback-bar correct-fb show';
+      fb.innerHTML = `<strong>✅ Correct! +1 point</strong><div class="feedback-fun">${q.fun}</div>`;
+    } else {
+      fb.className = 'feedback-bar wrong-fb show';
+      fb.innerHTML = `<strong>❌ Not quite!</strong> The answer was <strong>${q.opts[q.ans]}</strong><div class="feedback-fun">${q.fun}</div>`;
+    }
+  } else {
+    if (correct) {
+      fb.className = 'feedback-bar correct-fb show';
+      fb.innerHTML = `<strong>✅ ${answererName} got it right!</strong><div class="feedback-fun">${q.fun}</div>`;
+    } else {
+      fb.className = 'feedback-bar wrong-fb show';
+      fb.innerHTML = `<strong>❌ ${answererName} got it wrong.</strong> Answer: <strong>${q.opts[q.ans]}</strong><div class="feedback-fun">${q.fun}</div>`;
+    }
+    // Watcher also signals ready after a delay
+    setTimeout(async () => {
+      document.getElementById('waitingNext').className = 'waiting-next show';
+      await update(ref(db, `rooms/${roomCode}`), { [`ready/${myRole}`]: true });
+    }, 2500);
+  }
+}
+
+// ── RESULTS ──────────────────────────────────────────────
+function showResults() {
+  showScreen('resultsScreen');
+  document.getElementById('fp1name').textContent = names.host;
+  document.getElementById('fp2name').textContent = names.guest;
+  document.getElementById('fp1score').textContent = scores.host;
+  document.getElementById('fp2score').textContent = scores.guest;
+
+  let emoji, title, sub;
+  if (scores.host > scores.guest) {
+    emoji = '🥇'; title = `${names.host} wins!`;
+    sub = `${names.host} takes it with ${scores.host} out of ${totalQ} correct.`;
+    document.getElementById('finalP1Card').classList.add('winner');
+  } else if (scores.guest > scores.host) {
+    emoji = '🥇'; title = `${names.guest} wins!`;
+    sub = `${names.guest} takes it with ${scores.guest} out of ${totalQ} correct.`;
+    document.getElementById('finalP2Card').classList.add('winner');
+  } else {
+    emoji = '🤝'; title = "It's a tie!";
+    sub = `Both scored ${scores.host} out of ${totalQ}. Well matched!`;
+  }
+
+  document.getElementById('resultsEmoji').textContent = emoji;
+  document.getElementById('resultsTitle').textContent = title;
+  document.getElementById('resultsSub').textContent = sub;
+}
+
+// ── PLAY AGAIN ───────────────────────────────────────────
+window.playAgain = async function() {
+  if (myRole !== 'host') {
+    alert("Only the host can start a new game. Ask them to press Play Again!");
+    return;
+  }
+  const newQs = shuffle(ALL_QUESTIONS).slice(0, totalQ);
+  await update(ref(db, `rooms/${roomCode}`), {
+    questions: newQs,
+    currentQ: 0,
+    scores: { host: 0, guest: 0 },
+    answer: null,
+    ready: { host: false, guest: false },
+    status: 'playing'
+  });
+  gameQuestions = newQs;
+  scores = { host: 0, guest: 0 };
+  currentQIndex = 0;
+  answered = false;
+  document.getElementById('finalP1Card').classList.remove('winner');
+  document.getElementById('finalP2Card').classList.remove('winner');
+  document.getElementById('p1score').textContent = '0';
+  document.getElementById('p2score').textContent = '0';
+  showScreen('gameScreen');
+  renderQuestion();
+};
+
+window.newGame = function() {
+  if (gameListener) off(ref(db, `rooms/${roomCode}`));
+  remove(ref(db, `rooms/${roomCode}`));
+  location.reload();
+};
+
+</script>
+</body>
+</html>
