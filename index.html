@@ -151,6 +151,8 @@
     opacity: 0;
     animation: fadeUp 0.8s ease 0.8s forwards;
   }
+  .card-solo { grid-column: span 2; }
+  @media (max-width: 500px) { .card-solo { grid-column: span 1; } }
   @media (max-width: 500px) {
     .cards { grid-template-columns: 1fr; }
   }
@@ -185,6 +187,11 @@
 
   .card-offline:hover { border-color: rgba(126,200,227,0.3); }
   .card-online:hover { border-color: rgba(212,175,55,0.3); }
+  .card-solo::before { background: linear-gradient(90deg, #2a7d4f, var(--gold), #2a7d4f); }
+  .card-solo:hover { border-color: rgba(42,125,79,0.4); box-shadow: 0 20px 60px rgba(42,125,79,0.1); }
+  .card-solo .card-tag { color: #7edba5; }
+  .card-solo .card-btn { background: rgba(42,125,79,0.2); color: #7edba5; border: 1px solid rgba(42,125,79,0.35); }
+  .card-solo:hover .card-btn { background: rgba(42,125,79,0.35); }
 
   .card-icon { font-size: 36px; margin-bottom: 14px; }
   .card-tag {
@@ -332,6 +339,19 @@
       <div class="card-title">Multiplayer Mode</div>
       <div class="card-desc">Each player on their own phone. Real-time sync — answers and scores update live. Needs wifi.</div>
       <span class="card-btn">Play live →</span>
+    </a>
+
+
+    <a class="game-card card-solo" href="taiwan-trivia-solo.html" style="grid-column:span 2">
+      <div style="display:grid;grid-template-columns:48px 1fr;gap:0 14px;align-items:start">
+        <div style="font-size:36px">🏆</div>
+        <div>
+          <div class="card-tag">Solo · 3 Modes · Leaderboard</div>
+          <div class="card-title">Solo Challenge</div>
+          <div class="card-desc">Play alone across three modes — Classic, Speed Run, and Survival. Compete on the global leaderboard.</div>
+          <span class="card-btn" style="margin-top:16px;display:inline-flex">Play solo →</span>
+        </div>
+      </div>
     </a>
 
   </div>
