@@ -66,7 +66,7 @@
   /* ── HERO ── */
   .hero {
     text-align: center;
-    padding: 72px 0 56px;
+    padding: 40px 0 28px;
   }
 
   .flag-wrap {
@@ -132,7 +132,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    margin: 48px 0;
+    margin: 24px 0;
     opacity: 0.2;
   }
   .divider::before, .divider::after {
@@ -153,8 +153,9 @@
   }
   .card-solo { grid-column: span 2; }
   @media (max-width: 500px) { .card-solo { grid-column: span 1; } }
-  @media (max-width: 500px) {
+  @media (max-width: 600px) {
     .cards { grid-template-columns: 1fr; }
+    .card-solo { grid-column: span 1; }
   }
 
   .game-card {
@@ -342,7 +343,7 @@
     </a>
 
 
-    <a class="game-card card-solo" href="taiwan-trivia-solo.html" style="grid-column:span 2">
+    <a class="game-card card-solo" href="taiwan-trivia-solo.html">
       <div style="display:grid;grid-template-columns:48px 1fr;gap:0 14px;align-items:start">
         <div style="font-size:36px">🏆</div>
         <div>
