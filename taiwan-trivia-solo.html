@@ -439,6 +439,7 @@ let questions = [];
 let totalQ = 20;
 let currentIdx = 0;
 let score = 0;
+let correctCount = 0;
 let lives = 3;
 let streak = 0;
 let answered = false;
@@ -483,7 +484,7 @@ window.startGame = function(m) {
   mode = m;
   totalQ = selectedQ;
   questions = shuffle(ALL_Q).slice(0,totalQ);
-  score=0; lives=3; streak=0; currentIdx=0; answered=false; myLastScore=null;
+  score=0; correctCount=0; lives=3; streak=0; currentIdx=0; answered=false; myLastScore=null;
   document.getElementById('hudScore').textContent='0';
   document.getElementById('progressFill').style.width='0%';
   setGameMode(m);
@@ -577,6 +578,7 @@ function handleAnswer(chosen) {
 
   const fb=document.getElementById('feedback');
   if(correct){
+    correctCount++;
     let pts=1;
     if(mode==='timed') pts=Math.max(1,Math.ceil(timeLeft/3)); // bonus for speed
     score+=pts;
@@ -636,7 +638,7 @@ window.nextQ = function() {
 // ── END GAME ──────────────────────────────────────────
 async function endGame() {
   clearTimer();
-  const pct=Math.round((score/totalQ)*100);
+  const pct=Math.round((correctCount/totalQ)*100);
   let badge='🏅', title='Well Played!';
   if(pct>=90){badge='🏆';title='Taiwan Expert!';}
   else if(pct>=70){badge='🌟';title='Great Knowledge!';}
@@ -676,7 +678,7 @@ async function submitScore() {
       score,
       mode,
       totalQ,
-      pct: Math.round((score/totalQ)*100),
+      pct: Math.round((correctCount/totalQ)*100),
       ts: Date.now()
     };
     await push(ref(db,`solo_scores/${mode}`),entry);
