@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taiwan Trivia — Solo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #C8102E;
+    --gold: #D4AF37;
+    --deep: #0d0d0d;
+    --panel: #161616;
+    --cream: #f5f0e8;
+    --muted: rgba(245,240,232,0.45);
+    --correct: #2a7d4f;
+    --wrong: #c0392b;
+    --classic: #4a9eda;
+    --timed: #e8a030;
+    --challenge: #c0392b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--deep);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG */
+  body::before {
+    content:'';
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(200,16,46,0.14) 0%, transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(212,175,55,0.06) 0%, transparent 60%);
+  }
+
+  .wrap { position:relative; z-index:1; max-width:700px; margin:0 auto; padding:0 16px 80px; }
+
+  /* HEADER */
+  .header { text-align:center; padding:48px 0 32px; }
+  .flag { font-size:52px; display:block; margin-bottom:12px; animation:float 3s ease-in-out infinite; filter:drop-shadow(0 6px 16px rgba(200,16,46,0.4)); }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .header h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(52px,12vw,88px); letter-spacing:3px; line-height:1; }
+  .header h1 span { color:var(--gold); }
+  .header-sub { font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-top:6px; }
+
+  /* SCREENS */
+  .screen { display:none; }
+  .screen.active { display:block; animation:fadeIn 0.4s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* MODE SELECT */
+  .modes { display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:24px; }
+  .mode-card {
+    border-radius:16px; padding:20px 20px 18px;
+    border:1.5px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.03);
+    cursor:pointer; transition:all 0.25s ease;
+    display:grid; grid-template-columns:48px 1fr; gap:0 14px; align-items:center;
+  }
+  .mode-card:hover { transform:translateY(-2px); }
+  .mode-card.classic:hover { border-color:rgba(74,158,218,0.5); box-shadow:0 8px 30px rgba(74,158,218,0.12); }
+  .mode-card.timed:hover { border-color:rgba(232,160,48,0.5); box-shadow:0 8px 30px rgba(232,160,48,0.12); }
+  .mode-card.challenge:hover { border-color:rgba(192,57,43,0.5); box-shadow:0 8px 30px rgba(192,57,43,0.12); }
+  .mode-icon { font-size:32px; grid-row:span 2; justify-self:center; }
+  .mode-tag { font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+  .mode-card.classic .mode-tag { color:var(--classic); }
+  .mode-card.timed .mode-tag { color:var(--timed); }
+  .mode-card.challenge .mode-tag { color:var(--challenge); }
+  .mode-title { font-family:'DM Serif Display',serif; font-size:20px; margin:2px 0 4px; }
+  .mode-desc { font-size:12px; color:var(--muted); line-height:1.5; grid-column:2; }
+
+  .name-row { margin-bottom:16px; }
+  .name-row label { display:block; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); font-weight:600; margin-bottom:6px; }
+  .name-row input {
+    width:100%; padding:13px 16px;
+    background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,255,255,0.1);
+    border-radius:10px; color:var(--cream);
+    font-family:'DM Sans',sans-serif; font-size:15px; outline:none; transition:border-color 0.2s;
+  }
+  .name-row input:focus { border-color:var(--gold); }
+
+  .q-label { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); font-weight:600; margin-bottom:8px; }
+  .q-opts { display:flex; gap:8px; margin-bottom:20px; }
+  .q-opt {
+    flex:1; padding:9px; border-radius:8px;
+    background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1);
+    color:var(--cream); font-family:'DM Sans',sans-serif; font-size:14px; cursor:pointer; transition:all 0.2s;
+  }
+  .q-opt.sel { background:rgba(200,16,46,0.18); border-color:var(--red); color:#f08080; }
+
+  /* GAME HUD */
+  .hud {
+    display:grid; grid-template-columns:1fr auto 1fr;
+    align-items:center; gap:8px; margin-bottom:20px;
+  }
+  .hud-left { display:flex; flex-direction:column; gap:2px; }
+  .hud-score-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .hud-score { font-family:'Bebas Neue',sans-serif; font-size:42px; line-height:1; color:var(--gold); }
+  .hud-center { text-align:center; }
+  .hud-qnum { font-family:'DM Serif Display',serif; font-size:14px; color:var(--muted); }
+  .hud-right { text-align:right; }
+
+  /* TIMER */
+  .timer-ring-wrap { display:flex; justify-content:flex-end; }
+  .timer-ring { width:54px; height:54px; transform:rotate(-90deg); }
+  .timer-track { fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4; }
+  .timer-fill { fill:none; stroke-width:4; stroke-linecap:round; transition:stroke-dashoffset 1s linear, stroke 0.5s; }
+  .timer-text { font-family:'Bebas Neue',sans-serif; font-size:18px; fill:var(--cream); dominant-baseline:middle; text-anchor:middle; }
+  .timer-group { transform:rotate(90deg) translate(0,-54px); }
+
+  /* LIVES */
+  .lives { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
+  .life { font-size:22px; transition:all 0.3s; }
+  .life.lost { filter:grayscale(1) opacity(0.3); transform:scale(0.8); }
+
+  /* PROGRESS */
+  .progress-bar { height:3px; background:rgba(255,255,255,0.07); border-radius:2px; margin-bottom:22px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:2px; transition:width 0.5s ease; }
+  .mode-classic .progress-fill { background:linear-gradient(90deg,var(--classic),#7ec8e3); }
+  .mode-timed .progress-fill { background:linear-gradient(90deg,var(--timed),#f0d060); }
+  .mode-challenge .progress-fill { background:linear-gradient(90deg,var(--red),var(--gold)); }
+
+  /* QUESTION CARD */
+  .q-card {
+    background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.09);
+    border-radius:20px; padding:24px 22px 20px; position:relative; overflow:hidden;
+  }
+  .q-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background-size:200% 100%; animation:shimmer 3s linear infinite;
+  }
+  .mode-classic .q-card::before { background:linear-gradient(90deg,var(--classic),#7ec8e3,var(--classic)); }
+  .mode-timed .q-card::before { background:linear-gradient(90deg,var(--timed),#f0d060,var(--timed)); }
+  .mode-challenge .q-card::before { background:linear-gradient(90deg,var(--red),var(--gold),var(--red)); }
+  @keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
+
+  .cat-tag { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); opacity:0.65; margin-bottom:8px; }
+  .q-text { font-family:'DM Serif Display',serif; font-size:clamp(18px,3.5vw,23px); line-height:1.4; margin-bottom:20px; }
+
+  .opts-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  @media(max-width:480px) { .opts-grid{grid-template-columns:1fr;} }
+
+  .opt-btn {
+    background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1);
+    border-radius:12px; padding:13px 14px; color:var(--cream);
+    font-family:'DM Sans',sans-serif; font-size:14px; cursor:pointer;
+    text-align:left; transition:all 0.18s; display:flex; align-items:center; gap:10px; line-height:1.3;
+  }
+  .opt-btn:hover:not(:disabled) { background:rgba(255,255,255,0.09); border-color:rgba(212,175,55,0.4); transform:translateY(-1px); }
+  .opt-letter { width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; flex-shrink:0; color:var(--gold); }
+  .opt-btn.correct { background:rgba(42,125,79,0.25); border-color:#2a7d4f; color:#7edba5; }
+  .opt-btn.correct .opt-letter { background:#2a7d4f; color:#fff; }
+  .opt-btn.wrong { background:rgba(192,57,43,0.2); border-color:#c0392b; color:#f08080; }
+  .opt-btn.wrong .opt-letter { background:#c0392b; color:#fff; }
+  .opt-btn:disabled { cursor:not-allowed; }
+
+  .feedback {
+    margin-top:14px; padding:13px 16px; border-radius:12px;
+    font-size:13px; line-height:1.5; display:none; animation:fadeIn 0.3s ease;
+  }
+  .feedback.show { display:block; }
+  .feedback.ok { background:rgba(42,125,79,0.18); border:1px solid rgba(42,125,79,0.35); color:#7edba5; }
+  .feedback.bad { background:rgba(192,57,43,0.15); border:1px solid rgba(192,57,43,0.3); color:#f08080; }
+  .feedback-fun { margin-top:5px; font-size:12px; color:rgba(245,240,232,0.7); }
+
+  .next-btn {
+    display:none; width:100%; margin-top:14px; padding:13px;
+    background:linear-gradient(135deg,var(--red),#a00d24); border:none; border-radius:12px;
+    color:#fff; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600;
+    cursor:pointer; letter-spacing:0.5px; transition:all 0.2s;
+  }
+  .next-btn.show { display:block; animation:fadeIn 0.3s ease; }
+  .next-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(200,16,46,0.35); }
+
+  /* STREAK */
+  .streak-bar {
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:12px; font-size:12px; color:var(--muted);
+  }
+  .streak-num { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--gold); }
+  .streak-fire { font-size:18px; }
+
+  /* RESULTS */
+  .results-wrap { text-align:center; }
+  .results-badge {
+    display:inline-block; font-size:72px; margin-bottom:12px;
+    animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275);
+  }
+  @keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+  .results-wrap h2 { font-family:'Bebas Neue',sans-serif; font-size:clamp(36px,8vw,56px); letter-spacing:2px; margin-bottom:4px; }
+  .results-mode-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:20px; }
+  .results-stats {
+    display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:28px;
+  }
+  .stat-box {
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px; padding:16px 20px; min-width:90px;
+  }
+  .stat-val { font-family:'Bebas Neue',sans-serif; font-size:36px; color:var(--gold); line-height:1; }
+  .stat-lbl { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-top:2px; }
+  .results-btns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:36px; }
+  .btn-red { padding:12px 24px; border-radius:10px; background:linear-gradient(135deg,var(--red),#a00d24); border:none; color:#fff; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn-red:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(200,16,46,0.35); }
+  .btn-ghost { padding:12px 24px; border-radius:10px; background:transparent; border:1.5px solid rgba(255,255,255,0.15); color:var(--cream); font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn-ghost:hover { border-color:var(--gold); }
+
+  /* LEADERBOARD */
+  .lb-title { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; margin-bottom:4px; }
+  .lb-sub { font-size:12px; color:var(--muted); margin-bottom:20px; }
+  .lb-tabs { display:flex; gap:8px; margin-bottom:16px; }
+  .lb-tab {
+    padding:7px 16px; border-radius:8px; font-size:12px; font-weight:600; letter-spacing:0.5px;
+    cursor:pointer; border:1.5px solid rgba(255,255,255,0.1); background:transparent; color:var(--muted); transition:all 0.2s;
+  }
+  .lb-tab.active.classic { background:rgba(74,158,218,0.15); border-color:var(--classic); color:var(--classic); }
+  .lb-tab.active.timed { background:rgba(232,160,48,0.15); border-color:var(--timed); color:var(--timed); }
+  .lb-tab.active.challenge { background:rgba(192,57,43,0.15); border-color:var(--challenge); color:var(--challenge); }
+  .lb-list { display:flex; flex-direction:column; gap:8px; }
+  .lb-entry {
+    display:grid; grid-template-columns:32px 1fr auto;
+    align-items:center; gap:12px;
+    padding:12px 16px; border-radius:12px;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+  }
+  .lb-entry.me { border-color:rgba(212,175,55,0.35); background:rgba(212,175,55,0.06); }
+  .lb-rank { font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--muted); text-align:center; }
+  .lb-entry:nth-child(1) .lb-rank { color:#FFD700; }
+  .lb-entry:nth-child(2) .lb-rank { color:#C0C0C0; }
+  .lb-entry:nth-child(3) .lb-rank { color:#CD7F32; }
+  .lb-name { font-size:14px; font-weight:500; }
+  .lb-detail { font-size:11px; color:var(--muted); margin-top:1px; }
+  .lb-score { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--gold); }
+  .lb-empty { text-align:center; padding:32px; color:var(--muted); font-size:14px; }
+  .lb-loading { text-align:center; padding:24px; color:var(--muted); font-size:13px; }
+
+  /* GAME OVER (challenge) */
+  .game-over-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center; z-index:100;
+    animation:fadeIn 0.3s ease;
+  }
+  .game-over-box {
+    background:var(--panel); border:1px solid rgba(255,255,255,0.1);
+    border-radius:20px; padding:36px 28px; text-align:center; max-width:320px; width:90%;
+  }
+  .game-over-box .go-emoji { font-size:56px; margin-bottom:12px; }
+  .game-over-box h2 { font-family:'Bebas Neue',sans-serif; font-size:40px; letter-spacing:2px; margin-bottom:6px; color:var(--red); }
+  .game-over-box p { font-size:14px; color:var(--muted); margin-bottom:24px; }
+
+  .section-title {
+    display:flex; align-items:center; gap:12px;
+    font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--muted);
+    margin:32px 0 16px;
+  }
+  .section-title::before, .section-title::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.08); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <span class="flag">🇹🇼</span>
+    <h1>TAIWAN <span>TRIVIA</span></h1>
+    <p class="header-sub">Solo Challenge</p>
+  </div>
+
+  <!-- MODE SELECT SCREEN -->
+  <div id="modeScreen" class="screen active">
+    <div class="name-row">
+      <label>Your Name</label>
+      <input id="soloName" type="text" placeholder="Enter your name" maxlength="20">
+    </div>
+    <div class="q-label">Questions</div>
+    <div class="q-opts">
+      <button class="q-opt" data-val="10">10</button>
+      <button class="q-opt sel" data-val="20">20</button>
+      <button class="q-opt" data-val="30">30</button>
+    </div>
+    <div class="modes">
+      <div class="mode-card classic" onclick="startGame('classic')">
+        <div class="mode-icon">📚</div>
+        <div class="mode-tag">Classic</div>
+        <div class="mode-title">Knowledge Quiz</div>
+        <div class="mode-desc">Answer at your own pace. Score 1 point per correct answer. No pressure.</div>
+      </div>
+      <div class="mode-card timed" onclick="startGame('timed')">
+        <div class="mode-icon">⚡</div>
+        <div class="mode-tag">Timed</div>
+        <div class="mode-title">Speed Run</div>
+        <div class="mode-desc">15 seconds per question. Answer fast — bonus points for speed!</div>
+      </div>
+      <div class="mode-card challenge" onclick="startGame('challenge')">
+        <div class="mode-icon">💀</div>
+        <div class="mode-tag">Challenge</div>
+        <div class="mode-title">Survival Mode</div>
+        <div class="mode-desc">You have 3 lives. One wrong answer costs a life. Survive as long as you can.</div>
+      </div>
+    </div>
+
+    <div class="section-title">Leaderboard</div>
+    <div class="lb-tabs">
+      <button class="lb-tab active classic" data-mode="classic" onclick="switchLbTab('classic')">Classic</button>
+      <button class="lb-tab timed" data-mode="timed" onclick="switchLbTab('timed')">Timed</button>
+      <button class="lb-tab challenge" data-mode="challenge" onclick="switchLbTab('challenge')">Survival</button>
+    </div>
+    <div class="lb-list" id="lbList"><div class="lb-loading">Loading scores…</div></div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="screen">
+    <div id="gameWrap">
+      <div class="hud">
+        <div class="hud-left">
+          <div class="hud-score-label">Score</div>
+          <div class="hud-score" id="hudScore">0</div>
+        </div>
+        <div class="hud-center">
+          <div class="hud-qnum" id="hudQnum">Q 1 / 20</div>
+        </div>
+        <div class="hud-right" id="hudRight">
+          <!-- timer or lives injected here -->
+        </div>
+      </div>
+
+      <div class="streak-bar" id="streakBar" style="display:none">
+        <span class="streak-fire">🔥</span>
+        <span class="streak-num" id="streakNum">0</span>
+        <span>streak</span>
+      </div>
+
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+      <div class="q-card" id="qCard">
+        <div class="cat-tag" id="catTag">CULTURE</div>
+        <div class="q-text" id="qText">Loading…</div>
+        <div class="opts-grid" id="optsGrid"></div>
+        <div class="feedback" id="feedback"></div>
+        <button class="next-btn" id="nextBtn" onclick="nextQ()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div id="resultsScreen" class="screen">
+    <div class="results-wrap">
+      <div class="results-badge" id="resultsBadge">🏆</div>
+      <h2 id="resultsTitle">Well done!</h2>
+      <div class="results-mode-tag" id="resultsModeTag"></div>
+      <div class="results-stats" id="resultsStats"></div>
+      <div class="results-btns">
+        <button class="btn-red" onclick="playAgain()">Play Again</button>
+        <button class="btn-ghost" onclick="goHome()">Change Mode</button>
+      </div>
+
+      <div class="section-title">Leaderboard</div>
+      <div class="lb-tabs">
+        <button class="lb-tab active classic" data-mode="classic" onclick="switchLbTab('classic')">Classic</button>
+        <button class="lb-tab timed" data-mode="timed" onclick="switchLbTab('timed')">Timed</button>
+        <button class="lb-tab challenge" data-mode="challenge" onclick="switchLbTab('challenge')">Survival</button>
+      </div>
+      <div class="lb-list" id="lbListResults"><div class="lb-loading">Loading scores…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Game over overlay (challenge) -->
+<div class="game-over-overlay" id="gameOverOverlay" style="display:none">
+  <div class="game-over-box">
+    <div class="go-emoji">💀</div>
+    <h2>Game Over</h2>
+    <p id="gameOverMsg">You survived 8 questions!</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn-red" onclick="playAgain()">Try Again</button>
+      <button class="btn-ghost" onclick="goHome()">Change Mode</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, push, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKsvg050Oqr2RvvJFAM4RpUmqe1RIQuXc",
+  authDomain: "taiwan-trivia.firebaseapp.com",
+  databaseURL: "https://taiwan-trivia-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "taiwan-trivia",
+  storageBucket: "taiwan-trivia.firebasestorage.app",
+  messagingSenderId: "1098710658472",
+  appId: "1:1098710658472:web:0ccac0274ffb80a5c6c19d"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ── QUESTIONS ──────────────────────────────────────────
+const ALL_Q = [
+  { cat:"Geography", q:"What is the capital city of Taiwan?", opts:["Kaohsiung","Taichung","Taipei","Tainan"], ans:2, fun:"Taipei is home to over 2.6 million people and sits at the northern tip of the island." },
+  { cat:"Geography", q:"Taiwan is separated from mainland China by which body of water?", opts:["South China Sea","Philippine Sea","Taiwan Strait","East China Sea"], ans:2, fun:"The Taiwan Strait is about 180 km wide at its narrowest point." },
+  { cat:"Geography", q:"What is Taiwan's highest mountain?", opts:["Jade Mountain (Yushan)","Snow Mountain (Xueshan)","Alishan","Hehuanshan"], ans:0, fun:"Jade Mountain stands at 3,952 m — the highest peak in Northeast Asia." },
+  { cat:"Geography", q:"Which island administered by Taiwan is closest to mainland China?", opts:["Penghu","Green Island","Orchid Island","Kinmen (Quemoy)"], ans:3, fun:"Kinmen is just a few kilometers from the Chinese city of Xiamen." },
+  { cat:"Geography", q:"What is Taiwan's approximate land area?", opts:["16,000 km²","36,000 km²","56,000 km²","76,000 km²"], ans:1, fun:"At ~36,000 km², Taiwan is slightly larger than the Netherlands." },
+  { cat:"Food & Drink", q:"Which snack is a sausage wrapped inside a sticky rice sausage?", opts:["Oyster omelette","Scallion pancake","Big sausage small sausage","Pork blood cake"], ans:2, fun:"Called 大腸包小腸, it's a beloved night market street food." },
+  { cat:"Food & Drink", q:"Which drink was invented in Taiwan in the 1980s and became a global phenomenon?", opts:["Barley tea","Bubble tea (boba)","Grass jelly drink","Sugarcane juice"], ans:1, fun:"Bubble tea was invented in Taichung and is now enjoyed worldwide." },
+  { cat:"Food & Drink", q:"Which city hosts a famous annual Beef Noodle Festival?", opts:["Kaohsiung","Tainan","Taipei","Hualien"], ans:2, fun:"Taipei's International Beef Noodle Festival draws vendors from across the country." },
+  { cat:"Food & Drink", q:"What is 'ba-wan' (肉圓)?", opts:["Deep-fried tofu","A gelatinous dumpling with savory filling","Grilled corn","Sweet rice ball"], ans:1, fun:"Ba-wan is a chewy, semi-transparent dumpling made from sweet potato starch." },
+  { cat:"Food & Drink", q:"Taiwan is famous for which type of high-altitude mountain tea?", opts:["Pu-erh","Sencha","Oolong","Darjeeling"], ans:2, fun:"Alishan and Li Shan oolong teas are among the most prized in the world." },
+  { cat:"Food & Drink", q:"Which Taipei night market is the most famous for street food?", opts:["Ruifeng","Liuhe","Shilin","Fengjia"], ans:2, fun:"Shilin Night Market is one of the largest and most visited in Taiwan." },
+  { cat:"Food & Drink", q:"Taiwanese scallion pancakes are typically made with what addition?", opts:["Soy milk","Sweet chili sauce","A fried egg","Coconut milk"], ans:2, fun:"Scallion pancakes are often layered with a fresh fried egg and served with sauces." },
+  { cat:"Culture", q:"What is the primary official language spoken in Taiwan?", opts:["Cantonese","Mandarin Chinese","Hokkien","Japanese"], ans:1, fun:"Mandarin is official, though Taiwanese Hokkien is widely spoken among older generations." },
+  { cat:"Culture", q:"Taiwan's Lantern Festival is on the 15th day of which lunar month?", opts:["First","Third","Fifth","Seventh"], ans:0, fun:"The Pingxi sky lantern release is one of the world's most iconic festival events." },
+  { cat:"Culture", q:"What is Taiwan's most visited religious temple?", opts:["Fo Guang Shan","Longshan Temple","Xingtian Temple","Zhinan Temple"], ans:1, fun:"Longshan Temple in Taipei's Wanhua district was built in 1738." },
+  { cat:"Culture", q:"Which indigenous group gives their name to a famous gorge in eastern Taiwan?", opts:["Amis","Bunun","Taroko","Paiwan"], ans:2, fun:"Taroko Gorge is named after the Truku (Taroko) indigenous people." },
+  { cat:"Culture", q:"Taiwan celebrates which festival with dragon boat races?", opts:["Ghost Festival","Dragon Boat Festival","Tomb Sweeping Day","Lantern Festival"], ans:1, fun:"The Dragon Boat Festival is on the 5th day of the 5th lunar month." },
+  { cat:"Landmarks", q:"Taipei 101 lost its 'world's tallest building' title in which year?", opts:["2008","2010","2012","2014"], ans:1, fun:"It was surpassed by the Burj Khalifa in Dubai in 2010. It stands 509 metres tall." },
+  { cat:"Landmarks", q:"Which scenic railway travels up to the Alishan forest area?", opts:["North-Link Line","South-Link Line","Alishan Forest Railway","High Speed Rail"], ans:2, fun:"The Alishan Forest Railway is a narrow-gauge heritage railway through cypress forests." },
+  { cat:"Landmarks", q:"The National Palace Museum houses one of the world's largest collections of what?", opts:["Ancient Greek art","Chinese imperial artifacts","Southeast Asian textiles","Japanese ceramics"], ans:1, fun:"The museum holds over 700,000 pieces of Chinese imperial art and artifacts." },
+  { cat:"Landmarks", q:"Which hillside town near Taipei is famous for gold mining and sea-cliff views?", opts:["Jiufen","Kenting","Sun Moon Lake","Green Island"], ans:0, fun:"Jiufen's teahouses and alleyways are said to have inspired Studio Ghibli's Spirited Away." },
+  { cat:"Landmarks", q:"Sun Moon Lake is located in which county?", opts:["Nantou","Hualien","Chiayi","Pingtung"], ans:0, fun:"Sun Moon Lake sits at 748 m altitude — shaped like a sun on one side and a moon on the other." },
+  { cat:"Landmarks", q:"What is the name of the spectacular marble gorge in eastern Taiwan?", opts:["Yangmingshan","Taroko Gorge","Wulai Gorge","Maolin Gorge"], ans:1, fun:"Taroko National Park in Hualien County is one of Asia's most dramatic landscapes." },
+  { cat:"History", q:"Which European nation colonized Taiwan from 1624 to 1662?", opts:["Portugal","Spain","Britain","The Netherlands"], ans:3, fun:"The Dutch East India Company (VOC) built Fort Zeelandia near present-day Tainan." },
+  { cat:"History", q:"What nickname describes Taiwan's rapid economic growth from the 1960s–90s?", opts:["Asian Dragon","Taiwan Miracle","Pacific Tiger","Pearl of the Orient"], ans:1, fun:"The Taiwan Miracle made it one of Asia's Four Tigers." },
+  { cat:"History", q:"Taiwan leads the world in manufacturing which technology product?", opts:["Lithium batteries","Semiconductor chips","Solar panels","Industrial robots"], ans:1, fun:"TSMC produces over 90% of the world's most advanced semiconductor chips." },
+  { cat:"History", q:"Which general drove the Dutch out of Taiwan in 1662?", opts:["Qin Shi Huang","Koxinga (Zheng Chenggong)","Sun Yat-sen","Chiang Kai-shek"], ans:1, fun:"Koxinga, a Ming loyalist, besieged the Dutch for 9 months before they surrendered." },
+  { cat:"History", q:"How long was Taiwan under Japanese colonial rule?", opts:["30 years","40 years","50 years","60 years"], ans:2, fun:"Japan ruled Taiwan from 1895 to 1945, leaving lasting influences on food and architecture." },
+  { cat:"History", q:"What is the official name of the governing state of Taiwan?", opts:["Republic of Taiwan","Democratic Republic of Taiwan","Republic of China","People's Republic of Taiwan"], ans:2, fun:"The ROC government relocated to Taiwan in 1949 after the Chinese civil war." },
+  { cat:"Nature", q:"Taiwan's east coast faces which ocean?", opts:["Indian Ocean","Pacific Ocean","Arctic Ocean","Southern Ocean"], ans:1, fun:"The Pacific Ocean meets Taiwan's dramatic east coast directly." },
+  { cat:"Nature", q:"Which turquoise bird is endemic to Taiwan and considered a national treasure?", opts:["Taiwan Blue Magpie","Taiwan Barbet","Collared Bush Robin","Taiwan Rosefinch"], ans:0, fun:"The Taiwan Blue Magpie was voted the national bird in a public poll in 2007." },
+  { cat:"Nature", q:"About how many earthquakes does Taiwan experience per year?", opts:["Over 100","Over 1,000","Over 18,000","Over 100,000"], ans:2, fun:"Taiwan experiences around 18,000 earthquakes per year, most of them small." },
+];
+
+// ── STATE ──────────────────────────────────────────────
+let playerName = '';
+let mode = 'classic';
+let questions = [];
+let totalQ = 20;
+let currentIdx = 0;
+let score = 0;
+let lives = 3;
+let streak = 0;
+let answered = false;
+let timerInterval = null;
+let timeLeft = 15;
+let selectedQ = 20;
+let currentLbMode = 'classic';
+let myLastScore = null;
+
+// ── UTILS ─────────────────────────────────────────────
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function setGameMode(m) {
+  document.getElementById('gameWrap').className = '';
+  document.getElementById('gameWrap').classList.add(`mode-${m}`);
+  // also apply to q-card
+  document.getElementById('qCard').parentElement.className='';
+  document.getElementById('gameWrap').className = `mode-${m}`;
+}
+
+// ── Q-COUNT ───────────────────────────────────────────
+document.querySelectorAll('.q-opt').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.q-opt').forEach(b=>b.classList.remove('sel'));
+    this.classList.add('sel');
+    selectedQ=parseInt(this.dataset.val);
+  });
+});
+
+// ── START GAME ────────────────────────────────────────
+window.startGame = function(m) {
+  const name = document.getElementById('soloName').value.trim();
+  if(!name){document.getElementById('soloName').focus();document.getElementById('soloName').style.borderColor='var(--red)';return;}
+  playerName = name;
+  mode = m;
+  totalQ = selectedQ;
+  questions = shuffle(ALL_Q).slice(0,totalQ);
+  score=0; lives=3; streak=0; currentIdx=0; answered=false; myLastScore=null;
+  document.getElementById('hudScore').textContent='0';
+  document.getElementById('progressFill').style.width='0%';
+  setGameMode(m);
+  showScreen('gameScreen');
+  renderQ();
+};
+
+// ── RENDER QUESTION ───────────────────────────────────
+function renderQ() {
+  answered=false;
+  clearTimer();
+  const q=questions[currentIdx];
+  document.getElementById('hudQnum').textContent=`Q ${currentIdx+1} / ${totalQ}`;
+  document.getElementById('progressFill').style.width=`${(currentIdx/totalQ)*100}%`;
+  document.getElementById('catTag').textContent=q.cat.toUpperCase();
+  document.getElementById('qText').textContent=q.q;
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('feedback').innerHTML='';
+  document.getElementById('nextBtn').className='next-btn';
+
+  // Streak bar
+  const sb=document.getElementById('streakBar');
+  if(streak>=2){sb.style.display='flex';document.getElementById('streakNum').textContent=streak;}
+  else{sb.style.display='none';}
+
+  // Lives (challenge)
+  const hr=document.getElementById('hudRight');
+  if(mode==='challenge'){
+    hr.innerHTML='<div class="lives">'+
+      [0,1,2].map(i=>`<span class="life${i>=lives?' lost':''}">❤️</span>`).join('')+
+    '</div>';
+  } else if(mode==='timed'){
+    timeLeft=15;
+    hr.innerHTML=`
+      <div class="timer-ring-wrap">
+        <svg class="timer-ring" viewBox="0 0 54 54">
+          <circle class="timer-track" cx="27" cy="27" r="23"/>
+          <circle class="timer-fill" id="timerFill" cx="27" cy="27" r="23"
+            stroke-dasharray="144.5" stroke-dashoffset="0" stroke="var(--timed)"/>
+          <text class="timer-text" id="timerText" x="27" y="27">15</text>
+        </svg>
+      </div>`;
+    startTimer();
+  } else {
+    hr.innerHTML='';
+  }
+
+  const letters=['A','B','C','D'];
+  const grid=document.getElementById('optsGrid');
+  grid.innerHTML='';
+  q.opts.forEach((opt,i)=>{
+    const btn=document.createElement('button');
+    btn.className='opt-btn';
+    btn.innerHTML=`<span class="opt-letter">${letters[i]}</span>${opt}`;
+    btn.onclick=()=>handleAnswer(i);
+    grid.appendChild(btn);
+  });
+}
+
+// ── TIMER ─────────────────────────────────────────────
+function startTimer() {
+  const circumference=144.5;
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    const fill=document.getElementById('timerFill');
+    const text=document.getElementById('timerText');
+    if(!fill)return;
+    const pct=timeLeft/15;
+    fill.style.strokeDashoffset=circumference*(1-pct);
+    fill.style.stroke=timeLeft<=5?'var(--red)':timeLeft<=8?'#e87030':'var(--timed)';
+    text.textContent=timeLeft;
+    if(timeLeft<=0){clearTimer();handleAnswer(-1);}
+  },1000);
+}
+function clearTimer(){if(timerInterval){clearInterval(timerInterval);timerInterval=null;}}
+
+// ── HANDLE ANSWER ────────────────────────────────────
+function handleAnswer(chosen) {
+  if(answered)return;
+  answered=true;
+  clearTimer();
+
+  const q=questions[currentIdx];
+  const correct=chosen===q.ans;
+  const btns=document.querySelectorAll('.opt-btn');
+  btns.forEach((btn,i)=>{
+    btn.disabled=true;
+    if(i===q.ans)btn.classList.add('correct');
+    else if(i===chosen&&!correct)btn.classList.add('wrong');
+  });
+
+  const fb=document.getElementById('feedback');
+  if(correct){
+    let pts=1;
+    if(mode==='timed') pts=Math.max(1,Math.ceil(timeLeft/3)); // bonus for speed
+    score+=pts;
+    streak++;
+    if(streak>=3) score+=1; // streak bonus
+    document.getElementById('hudScore').textContent=score;
+    fb.className='feedback ok show';
+    const bonusMsg = mode==='timed'&&pts>1 ? ` <em style="opacity:0.7">(+${pts} speed bonus!)</em>` : streak>=3?` <em style="opacity:0.7">(+1 streak bonus!)</em>`:'';
+    fb.innerHTML=`<strong>✅ Correct!${bonusMsg}</strong><div class="feedback-fun">${q.fun}</div>`;
+  } else {
+    streak=0;
+    fb.className='feedback bad show';
+    if(chosen===-1){
+      fb.innerHTML=`<strong>⏰ Time's up!</strong> Answer: <strong>${q.opts[q.ans]}</strong><div class="feedback-fun">${q.fun}</div>`;
+    } else {
+      fb.innerHTML=`<strong>❌ Not quite!</strong> Answer: <strong>${q.opts[q.ans]}</strong><div class="feedback-fun">${q.fun}</div>`;
+    }
+    if(mode==='challenge'){
+      lives--;
+      updateLives();
+      if(lives<=0){
+        setTimeout(()=>showGameOver(),800);
+        return;
+      }
+    }
+  }
+
+  const nb=document.getElementById('nextBtn');
+  nb.className='next-btn show';
+  nb.textContent=currentIdx+1>=totalQ?'See Results 🏆':'Next →';
+}
+
+function updateLives(){
+  const hr=document.getElementById('hudRight');
+  hr.innerHTML='<div class="lives">'+
+    [0,1,2].map(i=>`<span class="life${i>=lives?' lost':''}">❤️</span>`).join('')+
+  '</div>';
+}
+
+function showGameOver(){
+  document.getElementById('gameOverMsg').textContent=
+    `You survived ${currentIdx} question${currentIdx===1?'':'s'} with a score of ${score}!`;
+  document.getElementById('gameOverOverlay').style.display='flex';
+  submitScore().then(()=>loadLeaderboard('classic'));
+}
+
+// ── NEXT QUESTION ─────────────────────────────────────
+window.nextQ = function() {
+  currentIdx++;
+  if(currentIdx>=totalQ){
+    endGame();
+  } else {
+    renderQ();
+  }
+};
+
+// ── END GAME ──────────────────────────────────────────
+async function endGame() {
+  clearTimer();
+  const pct=Math.round((score/totalQ)*100);
+  let badge='🏅', title='Well Played!';
+  if(pct>=90){badge='🏆';title='Taiwan Expert!';}
+  else if(pct>=70){badge='🌟';title='Great Knowledge!';}
+  else if(pct>=50){badge='👍';title='Good Effort!';}
+  else{badge='📚';title='Keep Learning!';}
+
+  document.getElementById('resultsBadge').textContent=badge;
+  document.getElementById('resultsTitle').textContent=title;
+
+  const modeNames={classic:'Classic Quiz',timed:'Speed Run',challenge:'Survival Mode'};
+  document.getElementById('resultsModeTag').textContent=`${modeNames[mode]} · ${totalQ} Questions`;
+
+  let statsHTML=`
+    <div class="stat-box"><div class="stat-val">${score}</div><div class="stat-lbl">Score</div></div>
+    <div class="stat-box"><div class="stat-val">${pct}%</div><div class="stat-lbl">Accuracy</div></div>`;
+  if(mode==='timed') statsHTML+=`<div class="stat-box"><div class="stat-val">${score}</div><div class="stat-lbl">Pts (with bonuses)</div></div>`;
+  if(mode==='challenge') statsHTML+=`<div class="stat-box"><div class="stat-val">${lives}</div><div class="stat-lbl">Lives left</div></div>`;
+  document.getElementById('resultsStats').innerHTML=statsHTML;
+
+  // Sync lb tabs on results page
+  document.querySelectorAll('#resultsScreen .lb-tab').forEach(t=>{
+    t.className='lb-tab '+t.dataset.mode;
+    if(t.dataset.mode===mode) t.classList.add('active',mode);
+  });
+  currentLbMode=mode;
+
+  await submitScore();
+  showScreen('resultsScreen');
+  loadLeaderboard(mode, 'lbListResults');
+}
+
+// ── SUBMIT SCORE ──────────────────────────────────────
+async function submitScore() {
+  try {
+    const entry={
+      name: playerName,
+      score,
+      mode,
+      totalQ,
+      pct: Math.round((score/totalQ)*100),
+      ts: Date.now()
+    };
+    await push(ref(db,`solo_scores/${mode}`),entry);
+    myLastScore=entry;
+  } catch(e){ console.error('Score submit failed',e); }
+}
+
+// ── LOAD LEADERBOARD ──────────────────────────────────
+async function loadLeaderboard(m, listId='lbList') {
+  const el=document.getElementById(listId);
+  el.innerHTML='<div class="lb-loading">Loading…</div>';
+  try {
+    const q2=query(ref(db,`solo_scores/${m}`),orderByChild('score'),limitToLast(10));
+    const snap=await get(q2);
+    if(!snap.exists()){el.innerHTML='<div class="lb-empty">No scores yet — be the first! 🏆</div>';return;}
+    const entries=[];
+    snap.forEach(child=>entries.push(child.val()));
+    entries.sort((a,b)=>b.score-a.score);
+    el.innerHTML=entries.map((e,i)=>{
+      const isMe=myLastScore&&e.name===myLastScore.name&&e.score===myLastScore.score&&e.ts===myLastScore.ts;
+      const medals=['🥇','🥈','🥉'];
+      const rank=i<3?medals[i]:`${i+1}`;
+      const detail=m==='timed'?`${e.totalQ}Q · Speed bonus`:`${e.pct}% correct · ${e.totalQ}Q`;
+      return `<div class="lb-entry${isMe?' me':''}">
+        <div class="lb-rank">${rank}</div>
+        <div><div class="lb-name">${e.name}${isMe?' 👈':''}</div><div class="lb-detail">${detail}</div></div>
+        <div class="lb-score">${e.score}</div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    el.innerHTML='<div class="lb-empty">Couldn\'t load scores.</div>';
+  }
+}
+
+// ── LB TAB SWITCH ─────────────────────────────────────
+window.switchLbTab = function(m) {
+  currentLbMode=m;
+  // Update tabs in whichever screen is active
+  document.querySelectorAll('.lb-tab').forEach(t=>{
+    t.className='lb-tab '+t.dataset.mode;
+    if(t.dataset.mode===m) t.classList.add('active',m);
+  });
+  const activeScreen=document.querySelector('.screen.active');
+  const listId=activeScreen.id==='resultsScreen'?'lbListResults':'lbList';
+  loadLeaderboard(m,listId);
+};
+
+// ── PLAY AGAIN ────────────────────────────────────────
+window.playAgain = function() {
+  document.getElementById('gameOverOverlay').style.display='none';
+  startGame(mode);
+};
+window.goHome = function() {
+  document.getElementById('gameOverOverlay').style.display='none';
+  showScreen('modeScreen');
+  loadLeaderboard(currentLbMode,'lbList');
+};
+
+// ── INIT ──────────────────────────────────────────────
+loadLeaderboard('classic','lbList');
+</script>
+</body>
+</html>
